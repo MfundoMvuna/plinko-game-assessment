@@ -3,10 +3,6 @@
   "outputDirectory": "frontend/out",
   "installCommand": "cd frontend && npm install",
   "framework": null,
-  "env": {
-    "NEXT_PUBLIC_API_URL": "https://34g6lb2bnc.execute-api.us-east-1.amazonaws.com/dev",
-    "NEXT_PUBLIC_WS_URL": "wss://c6itwoe51h.execute-api.us-east-1.amazonaws.com/dev"
-  },
   "headers": [
     {
       "source": "/(.*)",
@@ -15,4 +11,4 @@
       ]
     }
   ]
-}}
+}
