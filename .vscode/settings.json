@@ -8,6 +8,10 @@
         "/^cd \"c:\\\\Users\\\\Hi Fi\\\\Desktop\\\\plinko-game-assessment\"; git rm -r --cached node_modules 2>&1 \\| Select-Object -Last 5$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^cd \"c:\\\\Users\\\\Hi Fi\\\\Desktop\\\\plinko-game-assessment\" ; node node_modules\\\\webpack\\\\bin\\\\webpack\\.js --mode development 2>&1 \\| Out-String$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

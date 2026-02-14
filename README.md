@@ -1,8 +1,8 @@
 # Plinko Game
 
-A browser-based Plinko game built with **TypeScript** and **HTML5 Canvas**, following **Clean Architecture** principles and common design patterns.
+A browser-based Plinko game built with **TypeScript** and **HTML5 Canvas**, following **Clean Architecture** principles and common design patterns. Features a **real-time leaderboard** powered by an **AWS Serverless** backend.
 
-Drop pucks from the top of the board and watch them bounce off pegs into scoring slots. Land on high-value slots to maximize your balance!
+Drop pucks from the top of the board and watch them bounce off pegs into scoring slots. Land on high-value slots to maximize your balance — then submit your score to the global leaderboard!
 
 ---
 
@@ -15,6 +15,8 @@ Drop pucks from the top of the board and watch them bounce off pegs into scoring
 - Color-coded slots by value
 - Keyboard support (`Space` to drop)
 - Responsive modern UI
+- **Global leaderboard** with real-time updates via WebSocket
+- **Anti-cheat** score validation (checksum, rate limiting, score sanity checks)
 
 ---
 
@@ -39,7 +41,8 @@ src/
 │   ├── physics-engine.ts    Strategy pattern — pluggable physics
 │   ├── renderer.ts          Canvas rendering abstraction
 │   ├── particle-system.ts   Particle lifecycle manager
-│   └── game-state.ts        Score & state management
+│   ├── game-state.ts        Score & state management
+│   └── leaderboard-service.ts  HTTP + WebSocket client for backend
 │
 ├── factories/          ← Factory pattern — entity creation
 │   ├── peg-factory.ts
@@ -50,6 +53,23 @@ src/
 │   └── game.ts              Coordinates all services
 │
 └── main-new.ts         ← Composition root (DI wiring & bootstrap)
+
+backend/                ← AWS Lambda handlers (SAM)
+├── src/
+│   ├── handlers/
+│   │   ├── submit-score.ts      POST /scores — validate & store
+│   │   ├── get-leaderboard.ts   GET /scores — top N scores
+│   │   ├── ws-connect.ts        WebSocket $connect
+│   │   └── ws-disconnect.ts     WebSocket $disconnect
+│   ├── lib/
+│   │   ├── dynamo.ts            DynamoDB CRUD operations
+│   │   └── response.ts          API response helpers + CORS
+│   └── shared/
+│       └── types.ts             Shared types & checksum
+├── package.json
+└── tsconfig.json
+
+template.yaml           ← AWS SAM template (IaC)
 ```
 
 ### Design Patterns Used
@@ -74,7 +94,7 @@ src/
 ### Clone & Install
 
 ```bash
-git clone https://github.com/<your-username>/plinko-game-assessment.git
+git clone https://github.com/MfundoMvuna/plinko-game-assessment.git
 cd plinko-game-assessment
 npm install
 ```
@@ -145,15 +165,91 @@ The included `vercel.json` handles:
 
 ---
 
+## AWS Serverless Backend
+
+The leaderboard is powered by a fully serverless AWS stack, defined as Infrastructure-as-Code using **AWS SAM**.
+
+### Architecture
+
+```
+┌─────────────┐     HTTPS      ┌──────────────┐     ┌───────────────┐
+│   Browser   │◄──────────────►│  HTTP API GW  │────►│ Submit Score  │
+│  (Canvas +  │                │   /scores     │     │   Lambda      │──┐
+│  Leaderboard)│               └──────────────┘     └───────────────┘  │
+│             │                                                        ▼
+│             │     WSS        ┌──────────────┐     ┌───────────────┐ ┌────────────┐
+│             │◄──────────────►│ WebSocket GW  │────►│ Connect /     │ │ DynamoDB   │
+│             │                │  $connect     │     │ Disconnect    │ │ Leaderboard│
+└─────────────┘                │  $disconnect  │     │   Lambdas     │ │ Connections│
+                               └──────────────┘     └───────────────┘ └────────────┘
+```
+
+### Services
+
+| Service            | Purpose                                                    |
+| ------------------ | ---------------------------------------------------------- |
+| **API Gateway**    | HTTP API (`/scores` GET/POST) + WebSocket API              |
+| **Lambda** (x4)    | Submit score, get leaderboard, WS connect, WS disconnect   |
+| **DynamoDB** (x2)  | `LeaderboardTable` (scores), `ConnectionsTable` (WS conns) |
+| **CloudWatch**     | Automatic logging for all Lambda invocations               |
+
+### Anti-Cheat Validation
+
+- **Checksum**: Scores include a hash of `playerName:score:dropsUsed:salt` — server recomputes and rejects mismatches
+- **Rate Limiting**: Max 10 submissions per minute per IP
+- **Score Sanity**: Maximum score capped at 500 (prevents impossibly high values)
+
+### Deploy the Backend
+
+#### Prerequisites
+
+- [AWS CLI](https://aws.amazon.com/cli/) configured with credentials
+- [AWS SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html)
+
+#### Steps
+
+```bash
+# 1. Install backend dependencies
+cd backend
+npm install
+
+# 2. Build & deploy with SAM
+cd ..
+sam build
+sam deploy --guided
+```
+
+SAM will prompt for a stack name (e.g., `plinko-backend`) and region. After deployment, it outputs:
+
+- `HttpApiUrl` — your REST endpoint (e.g., `https://abc123.execute-api.us-east-1.amazonaws.com/dev`)
+- `WebSocketUrl` — your WebSocket URL (e.g., `wss://xyz789.execute-api.us-east-1.amazonaws.com/dev`)
+
+#### Connect Frontend to Backend
+
+Update the configuration constants in `src/main-new.ts`:
+
+```typescript
+const API_URL = 'https://abc123.execute-api.us-east-1.amazonaws.com/dev';
+const WS_URL = 'wss://xyz789.execute-api.us-east-1.amazonaws.com/dev';
+```
+
+Then rebuild: `npm run build`
+
+---
+
 ## Tech Stack
 
-| Technology  | Purpose              |
-| ----------- | -------------------- |
-| TypeScript  | Type-safe game logic |
-| HTML5 Canvas| Rendering            |
-| Webpack     | Bundling             |
-| lite-server | Local dev server     |
-| Vercel      | Hosting              |
+| Technology       | Purpose                     |
+| ---------------- | --------------------------- |
+| TypeScript       | Type-safe game + backend    |
+| HTML5 Canvas     | Game rendering              |
+| Webpack          | Frontend bundling           |
+| lite-server      | Local dev server            |
+| Vercel           | Frontend hosting            |
+| AWS Lambda       | Serverless compute          |
+| DynamoDB         | NoSQL leaderboard storage   |
+| API Gateway      | HTTP + WebSocket APIs       |
+| AWS SAM          | Infrastructure-as-Code      |
 
 ---
 

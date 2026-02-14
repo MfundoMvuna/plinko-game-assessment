@@ -20,6 +20,12 @@ import { PegFactory } from './factories/peg-factory';
 import { PuckFactory } from './factories/puck-factory';
 import { SlotFactory } from './factories/slot-factory';
 import { Game } from './game/game';
+import { LeaderboardService, LeaderboardEntry } from './services/leaderboard-service';
+
+// ─── Configuration ──────────────────────────────────────────
+// Set these after deploying your SAM backend:
+const API_URL = ''; // e.g. 'https://abc123.execute-api.us-east-1.amazonaws.com/dev'
+const WS_URL = '';  // e.g. 'wss://xyz789.execute-api.us-east-1.amazonaws.com/dev'
 
 /**
  * Application bootstrap — Composition Root.
@@ -33,6 +39,17 @@ function bootstrap(): void {
   const resetButton = document.getElementById('resetButton') as HTMLButtonElement;
   const scoreElement = document.getElementById('scoreDisplay') as HTMLElement;
   const messageElement = document.getElementById('messageDisplay') as HTMLElement;
+
+  // Leaderboard UI elements
+  const leaderboardList = document.getElementById('leaderboardList') as HTMLOListElement;
+  const leaderboardStatus = document.getElementById('leaderboardStatus') as HTMLElement;
+  const leaderboardEmpty = document.getElementById('leaderboardEmpty') as HTMLElement;
+  const scoreModal = document.getElementById('scoreModal') as HTMLElement;
+  const finalScoreEl = document.getElementById('finalScore') as HTMLElement;
+  const playerNameInput = document.getElementById('playerNameInput') as HTMLInputElement;
+  const submitScoreBtn = document.getElementById('submitScoreBtn') as HTMLButtonElement;
+  const skipScoreBtn = document.getElementById('skipScoreBtn') as HTMLButtonElement;
+  const submitResult = document.getElementById('submitResult') as HTMLElement;
 
   if (!canvas) throw new Error('Canvas element not found');
 
@@ -89,6 +106,52 @@ function bootstrap(): void {
   const gameState = container.resolve<IGameState>(ServiceTokens.GameState);
   const game = container.resolve<Game>(ServiceTokens.Game);
 
+  // ─── Leaderboard Service ────────────────────────────────
+  const leaderboard = API_URL ? new LeaderboardService(API_URL, WS_URL || null) : null;
+  let dropsUsed = 0;
+  let maxMultiplier = 0;
+
+  function renderLeaderboard(entries: LeaderboardEntry[]): void {
+    leaderboardStatus.style.display = 'none';
+    if (entries.length === 0) {
+      leaderboardEmpty.style.display = 'block';
+      leaderboardList.innerHTML = '';
+      return;
+    }
+    leaderboardEmpty.style.display = 'none';
+    leaderboardList.innerHTML = entries
+      .map(
+        (e, i) =>
+          `<li class="lb-entry${i < 3 ? ' lb-top' : ''}">
+            <span class="lb-rank">${i + 1}</span>
+            <span class="lb-name">${escapeHtml(e.playerName)}</span>
+            <span class="lb-score">${e.score}</span>
+          </li>`,
+      )
+      .join('');
+  }
+
+  function escapeHtml(str: string): string {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  // Load leaderboard on startup
+  if (leaderboard) {
+    leaderboard.getLeaderboard().then(renderLeaderboard);
+    if (WS_URL) {
+      leaderboard.connectWebSocket();
+      leaderboard.onLeaderboardUpdate(renderLeaderboard);
+      leaderboard.onNewHighScore(() => {
+        leaderboard.getLeaderboard().then(renderLeaderboard);
+      });
+    }
+  } else {
+    leaderboardStatus.textContent = 'Backend not configured';
+    leaderboardStatus.style.display = 'block';
+  }
+
   // ─── UI Event Handlers (Observer Pattern) ───────────────
 
   // Score display updates via events (not direct coupling)
@@ -105,14 +168,37 @@ function bootstrap(): void {
     playButton.disabled = !gameState.canDrop();
   });
 
+  // Track drops and multipliers for leaderboard submission
+  eventBus.on(GameEventType.PUCK_DROPPED, () => {
+    dropsUsed++;
+  });
+
+  eventBus.on(GameEventType.PUCK_LANDED, (event) => {
+    const payload = event.payload as any;
+    if (payload && payload.value > maxMultiplier) {
+      maxMultiplier = payload.value;
+    }
+  });
+
   eventBus.on(GameEventType.GAME_OVER, () => {
-    showMessage('Game Over! Click "New Game" to play again.', 'warning');
     playButton.disabled = true;
+    // Show score submission modal instead of just a message
+    if (leaderboard) {
+      finalScoreEl.textContent = String(gameState.score);
+      submitResult.style.display = 'none';
+      playerNameInput.value = '';
+      scoreModal.style.display = 'flex';
+    } else {
+      showMessage('Game Over! Click "New Game" to play again.', 'warning');
+    }
   });
 
   eventBus.on(GameEventType.GAME_RESET, () => {
     hideMessage();
+    scoreModal.style.display = 'none';
     playButton.disabled = false;
+    dropsUsed = 0;
+    maxMultiplier = 0;
   });
 
   // ─── Button Handlers ────────────────────────────────────
@@ -154,6 +240,51 @@ function bootstrap(): void {
       messageElement.style.display = 'none';
     }
   }
+
+  // ─── Leaderboard Modal Handlers ──────────────────────────
+
+  submitScoreBtn.addEventListener('click', async () => {
+    const name = playerNameInput.value.trim();
+    if (!name) {
+      playerNameInput.focus();
+      return;
+    }
+    submitScoreBtn.disabled = true;
+    submitScoreBtn.textContent = 'Submitting...';
+
+    if (leaderboard) {
+      const result = await leaderboard.submitScore(name, gameState.score, maxMultiplier, dropsUsed);
+      if (result && result.success) {
+        submitResult.textContent = result.message;
+        submitResult.className = 'modal-result success';
+        submitResult.style.display = 'block';
+        // Refresh leaderboard
+        const entries = await leaderboard.getLeaderboard();
+        renderLeaderboard(entries);
+        setTimeout(() => {
+          scoreModal.style.display = 'none';
+        }, 2000);
+      } else {
+        submitResult.textContent = 'Failed to submit. Try again.';
+        submitResult.className = 'modal-result error';
+        submitResult.style.display = 'block';
+      }
+    }
+
+    submitScoreBtn.disabled = false;
+    submitScoreBtn.textContent = 'Submit Score';
+  });
+
+  skipScoreBtn.addEventListener('click', () => {
+    scoreModal.style.display = 'none';
+    showMessage('Game Over! Click "New Game" to play again.', 'warning');
+  });
+
+  playerNameInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      submitScoreBtn.click();
+    }
+  });
 
   // ─── Start the Game ─────────────────────────────────────
   game.start();

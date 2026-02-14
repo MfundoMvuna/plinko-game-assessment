@@ -20,10 +20,37 @@
       </div>
     </header>
 
-    <div class="game-container">
-      <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div class="game-layout">
+      <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="messageDisplay" class="message" style="display: none;"></div>
+      </div>
 
-      <div id="messageDisplay" class="message" style="display: none;"></div>
+      <aside class="leaderboard-panel" id="leaderboardPanel">
+        <h2 class="leaderboard-title">Leaderboard</h2>
+        <div class="leaderboard-status" id="leaderboardStatus">Loading...</div>
+        <ol class="leaderboard-list" id="leaderboardList"></ol>
+        <div class="leaderboard-empty" id="leaderboardEmpty" style="display: none;">
+          No scores yet. Be the first!
+        </div>
+      </aside>
+    </div>
+
+    <!-- Score submission modal -->
+    <div class="modal-overlay" id="scoreModal" style="display: none;">
+      <div class="modal">
+        <h2 class="modal-title">Game Over!</h2>
+        <p class="modal-score">Final Score: <strong id="finalScore">0</strong></p>
+        <div class="modal-form">
+          <label for="playerNameInput" class="modal-label">Enter your name for the leaderboard:</label>
+          <input type="text" id="playerNameInput" class="modal-input" placeholder="Your Name" maxlength="20" />
+          <div class="modal-buttons">
+            <button id="submitScoreBtn" class="btn btn-primary">Submit Score</button>
+            <button id="skipScoreBtn" class="btn btn-secondary">Skip</button>
+          </div>
+          <p class="modal-result" id="submitResult" style="display: none;"></p>
+        </div>
+      </div>
     </div>
 
     <div class="controls">

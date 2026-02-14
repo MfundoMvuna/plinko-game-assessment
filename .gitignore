@@ -4,6 +4,20 @@ node_modules/
 # Build output
 dist/
 
+# Next.js
+frontend/.next/
+frontend/out/
+
+# .NET
+backend/**/bin/
+backend/**/obj/
+*.user
+*.suo
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+
 # OS files
 Thumbs.db
 .DS_Store
@@ -16,9 +30,21 @@ Thumbs.db
 # Environment
 .env
 .env.local
+.env*.local
 
 # Vercel
 .vercel/
 
 # Compiled JS (generated from TS)
 src/**/*.js
+
+# Deploy artifacts
+deploy.ps1
+deploy-fix.ps1
+deploy-outputs.json
+build-output.txt
+npm-install-log.txt
+lambda-package.zip
+
+# Published binaries
+backend/**/publish/

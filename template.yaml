@@ -1,0 +1,208 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Plinko Game — .NET 8 Serverless Backend (Leaderboard + WebSocket)
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+
+Globals:
+  Function:
+    Timeout: 15
+    MemorySize: 256
+    Runtime: dotnet8
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        LEADERBOARD_TABLE: !Ref LeaderboardTable
+        CONNECTIONS_TABLE: !Ref ConnectionsTable
+
+Resources:
+
+  # ─── DynamoDB Tables ─────────────────────────────────────────
+
+  LeaderboardTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub plinko-leaderboard-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+
+  ConnectionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub plinko-connections-${Stage}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: connectionId
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  # ─── HTTP API Gateway ───────────────────────────────────────
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Stage
+      CorsConfiguration:
+        AllowOrigins:
+          - '*'
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+
+  # ─── Lambda Functions ───────────────────────────────────────
+
+  SubmitScoreFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/PlinkoApi/
+      Handler: PlinkoApi::PlinkoApi.Functions.SubmitScoreFunction::Handler
+      Environment:
+        Variables:
+          WEBSOCKET_ENDPOINT: !Sub https://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
+      Events:
+        PostScore:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /scores
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref LeaderboardTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConnectionsTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - execute-api:ManageConnections
+              Resource: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*
+
+  GetLeaderboardFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/PlinkoApi/
+      Handler: PlinkoApi::PlinkoApi.Functions.GetLeaderboardFunction::Handler
+      Events:
+        GetScores:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /scores
+            Method: GET
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref LeaderboardTable
+
+  # ─── WebSocket API ──────────────────────────────────────────
+
+  WebSocketApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: !Sub plinko-websocket-${Stage}
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+
+  WebSocketStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref WebSocketApi
+      StageName: !Ref Stage
+      AutoDeploy: true
+
+  # Connect handler
+  ConnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/PlinkoApi/
+      Handler: PlinkoApi::PlinkoApi.Functions.WebSocketConnectFunction::Handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConnectionsTable
+
+  ConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ConnectFunction.Arn}/invocations
+
+  ConnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $connect
+      Target: !Sub integrations/${ConnectIntegration}
+
+  ConnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ConnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*/$connect
+
+  # Disconnect handler
+  DisconnectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/src/PlinkoApi/
+      Handler: PlinkoApi::PlinkoApi.Functions.WebSocketDisconnectFunction::Handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ConnectionsTable
+
+  DisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref WebSocketApi
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DisconnectFunction.Arn}/invocations
+
+  DisconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref WebSocketApi
+      RouteKey: $disconnect
+      Target: !Sub integrations/${DisconnectIntegration}
+
+  DisconnectPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref DisconnectFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${WebSocketApi}/*/$disconnect
+
+Outputs:
+  HttpApiUrl:
+    Description: HTTP API endpoint URL
+    Value: !Sub https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
+
+  WebSocketUrl:
+    Description: WebSocket API endpoint URL
+    Value: !Sub wss://${WebSocketApi}.execute-api.${AWS::Region}.amazonaws.com/${Stage}
+
+  LeaderboardTableName:
+    Description: DynamoDB leaderboard table name
+    Value: !Ref LeaderboardTable
+
+  ConnectionsTableName:
+    Description: DynamoDB connections table name
+    Value: !Ref ConnectionsTable
