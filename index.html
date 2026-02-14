@@ -2,17 +2,52 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Plinko Game</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="container">
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div class="controls">
-      <div id="scoreDisplay">Balance: 100</div>
-      <button id="playButton">Drop Puck</button>
+  <div class="game-wrapper">
+    <header class="game-header">
+      <h1 class="game-title">
+        <span class="title-icon">&#9679;</span> PLINKO
+      </h1>
+      <div class="header-info">
+        <span class="hint">Press <kbd>Space</kbd> or click to drop</span>
       </div>
+    </header>
+
+    <div class="game-container">
+      <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+      <div id="messageDisplay" class="message" style="display: none;"></div>
+    </div>
+
+    <div class="controls">
+      <div class="score-section">
+        <label class="score-label">BALANCE</label>
+        <div id="scoreDisplay" class="score-value">Balance: 100</div>
+      </div>
+      <div class="button-group">
+        <button id="playButton" class="btn btn-primary">
+          <span class="btn-icon">&#9660;</span> Drop Puck
+        </button>
+        <button id="resetButton" class="btn btn-secondary">
+          &#8634; New Game
+        </button>
+      </div>
+    </div>
+
+    <footer class="game-footer">
+      <span>Cost per drop: <strong>10</strong></span>
+      <span class="separator">|</span>
+      <span>Land on high-value slots to win big!</span>
+    </footer>
   </div>
-  <script type="module" src="dist/bundle.js" ></script>
+
+  <script type="module" src="dist/bundle.js"></script>
 </body>
 </html>

@@ -1,75 +1,300 @@
+/* ============================================================
+   Plinko Game — Modern UI Design
+   ============================================================ */
+
+/* ─── Reset & Base ──────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  min-height: 100vh;
   margin: 0;
-  background-color: #282c34;
-  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  color: #e2e8f0;
+  overflow: hidden;
 }
 
-.container {
+/* ─── Game Wrapper ──────────────────────────────────────────── */
+.game-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  background-color: white;
-  padding: 20px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  gap: 16px;
+  padding: 24px;
+  max-width: 860px;
+  width: 100%;
+}
+
+/* ─── Header ────────────────────────────────────────────────── */
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 4px;
+}
+
+.game-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 4px;
+  background: linear-gradient(135deg, #ffd700, #ff8c00, #ffd700);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+}
+
+.title-icon {
+  display: inline-block;
+  font-size: 20px;
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.header-info {
+  display: flex;
+  align-items: center;
+}
+
+.hint {
+  font-size: 12px;
+  color: #64748b;
+  letter-spacing: 0.5px;
+}
+
+kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #94a3b8;
+  margin: 0 2px;
+}
+
+/* ─── Game Container ────────────────────────────────────────── */
+.game-container {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 215, 0, 0.1),
+    0 4px 6px rgba(0, 0, 0, 0.4),
+    0 20px 40px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 #gameCanvas {
-  border: 1px solid #3639d3d2;
-  background: linear-gradient(135deg, #152db3, #1a33a5);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
+  display: block;
+  border: none;
+  background: transparent;
 }
 
+/* ─── Message Display ───────────────────────────────────────── */
+.message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  animation: fadeIn 0.3s ease;
+  z-index: 10;
+}
+
+.message.info {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.message.warning {
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* ─── Controls ──────────────────────────────────────────────── */
 .controls {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  margin-top: 20px;
-  gap: 1.5em;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
 }
 
-#playButton {
-  margin-top: -0.25rem;
-  padding: 10px 20px;
-  background-color: #007BFF;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+.score-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-#playButton:hover {
-  background-color: #0056b3;
+.score-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: #64748b;
+  text-transform: uppercase;
 }
 
-#scoreDisplay  {
-  margin-top: -0.25rem;
-  font-size: 18px;
-  font-weight: bold;
-  display: inline-block;
-  margin-right: 0.5rem;
-  color: #282c34
-}
-
-#scoreDisplay span {
-  display: inline-block;
-  width: 50px; 
-  text-align: center;
-}
-
-#score {
-  position: absolute;
-  top: 10px;
-  left: 10px;
+.score-value {
   font-size: 24px;
-  font-weight: bold;
-  color: white;
+  font-weight: 800;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  transition: transform 0.15s ease;
+}
+
+.score-bump {
+  animation: scoreBump 0.3s ease;
+}
+
+@keyframes scoreBump {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+.button-group {
+  display: flex;
+  gap: 10px;
+}
+
+/* ─── Buttons ───────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #1a1a2e;
+  box-shadow:
+    0 2px 8px rgba(245, 158, 11, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.5);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  transform: translateY(-1px);
+}
+
+.btn-icon {
+  font-size: 12px;
+}
+
+/* ─── Footer ────────────────────────────────────────────────── */
+.game-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.game-footer strong {
+  color: #ffd700;
+}
+
+.separator {
+  color: #334155;
+}
+
+/* ─── Responsive ────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .game-wrapper {
+    padding: 16px;
+  }
+
+  #gameCanvas {
+    width: 100%;
+    height: auto;
+  }
+
+  .controls {
+    flex-direction: column;
+    gap: 12px;
+    text-align: center;
+  }
+
+  .score-section {
+    align-items: center;
+  }
+
+  .game-header {
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
 }
 
 
