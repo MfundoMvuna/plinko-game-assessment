@@ -4,6 +4,10 @@
         "npx webpack": true,
         "ForEach-Object": true,
         "Get-Item": true,
-        "Y": true
+        "Y": true,
+        "/^cd \"c:\\\\Users\\\\Hi Fi\\\\Desktop\\\\plinko-game-assessment\"; git rm -r --cached node_modules 2>&1 \\| Select-Object -Last 5$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
     }
 }
