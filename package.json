@@ -1,13 +1,14 @@
 {
   "name": "plinko-game-assessment",
   "version": "1.0.0",
-  "description": "",
+  "description": "A Plinko game built with TypeScript and Canvas, using Clean Architecture patterns.",
   "main": "index.js",
   "scripts": {
     "start": "lite-server",
-    "build": "webpack"
+    "build": "npx webpack --mode production",
+    "dev": "npx webpack --mode development && lite-server"
   },
-  "keywords": [],
+  "keywords": ["plinko", "game", "typescript", "canvas"],
   "author": "",
   "license": "ISC",
   "devDependencies": {

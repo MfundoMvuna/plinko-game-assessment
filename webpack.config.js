@@ -1,7 +1,7 @@
 const path = require('path');
 
-module.exports = {
-  mode: 'development',
+module.exports = (env, argv) => ({
+  mode: argv.mode || 'development',
   entry: './src/main-new.ts',
   output: {
     filename: 'bundle.js',
@@ -23,4 +23,4 @@ module.exports = {
       },
     ],
   },
-};
+});
