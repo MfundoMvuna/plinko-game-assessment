@@ -18,7 +18,20 @@ public class ChecksumService : IChecksumService
         {
             hash = ((hash << 5) - hash + c) | 0;
         }
-        return Convert.ToString(Math.Abs(hash), 36);
+        return ToBase36(Math.Abs(hash));
+    }
+
+    private static string ToBase36(int value)
+    {
+        const string chars = "0123456789abcdefghijklmnopqrstuvwxyz";
+        if (value == 0) return "0";
+        var result = "";
+        while (value > 0)
+        {
+            result = chars[value % 36] + result;
+            value /= 36;
+        }
+        return result;
     }
 
     public bool Validate(string playerName, int score, int dropsUsed, string checksum)
