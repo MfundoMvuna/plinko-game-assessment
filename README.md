@@ -67,7 +67,7 @@ DynamoDB (Scores + Connections)
 
 **Backend**
 
-* AWS Lambda (Node.js)
+* AWS Lambda (C#)
 * API Gateway (HTTP + WebSocket)
 * DynamoDB
 
